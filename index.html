@@ -38,7 +38,6 @@
             margin-bottom: 20px; 
         }
         
-        /* Onglets tactiles internes (Zéro Popup) */
         .tabs {
             display: flex;
             gap: 10px;
@@ -91,7 +90,6 @@
         textarea { resize: vertical; height: 220px; }
         
         button.btn { 
-            width: 100%; 
             padding: 15px; 
             border-radius: 12px; 
             border: none; 
@@ -114,11 +112,10 @@
         .blue-btn { color: var(--blue); }
         .red-btn { color: var(--danger); }
         
-        /* Iframe de rendu virtuel */
         .preview-container {
             position: relative;
             width: 100%;
-            height: 300px;
+            height: 60vh; /* Hauteur dynamique proportionnelle à l'écran */
             border-radius: 14px;
             overflow: hidden;
             box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
@@ -128,7 +125,6 @@
         
         iframe { width: 100%; height: 100%; border: none; background: #fff; }
 
-        /* Bouton flottant Plein Écran Neumorphique */
         .fullscreen-btn {
             position: absolute;
             bottom: 15px;
@@ -154,7 +150,6 @@
             transform: scale(0.96);
         }
         
-        /* Console Log Mobile Intégrée */
         #consoleLog { 
             background: var(--bg); 
             color: var(--success); 
@@ -190,17 +185,18 @@
 <link rel="apple-touch-icon" href="icon.png"></head>
 <body>
 
-    <!-- Système d'onglets pour navigation sur un seul écran mobile -->
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('editor-tab')">🧪 Code Sandbox</button>
         <button class="tab-btn" onclick="switchTab('extractor-tab')">✂️ Extractor</button>
     </div>
 
-    <!-- ONGLET 1 : SANDBOX ET EXECUTION DIRECTE -->
     <div id="editor-tab" class="tab-content active">
         <div class="card">
             <textarea id="sandboxCode" placeholder="Colle ton code HTML/CSS/JS ici pour le tester instantanément..." oninput="autoSaveSandbox()"></textarea>
-            <button class="btn yellow-btn" onclick="runSandbox()">⚡ EXÉCUTER DANS LE LAB</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="color: #fff; width: 30%;" onclick="pasteClipboard()">📋 COLLER</button>
+                <button class="btn yellow-btn" style="flex: 1;" onclick="runSandbox()">⚡ EXÉCUTER DANS LE LAB</button>
+            </div>
         </div>
 
         <div class="card" style="padding: 12px;">
@@ -210,203 +206,128 @@
                 <button class="fullscreen-btn" id="fsBtn" onclick="toggleFullscreen()">⛶</button>
             </div>
             <div id="consoleLog">> Console prête. En attente d'exécution...</div>
-            <button class="btn red-btn" style="font-size: 0.7rem; padding: 10px;" onclick="clearConsole()">🗑️ EFFACER LA CONSOLE</button>
+            <button class="btn red-btn" style="font-size: 0.7rem; padding: 10px; width: 100%;" onclick="clearConsole()">🗑️ EFFACER LA CONSOLE</button>
         </div>
     </div>
 
-    <!-- ONGLET 2 : EXTRACTEUR CHIRURGICAL DE BLOCS -->
     <div id="extractor-tab" class="tab-content">
         <div class="card">
             <div style="font-size: 0.75rem; text-transform: uppercase; color: #888; margin-bottom: 5px; letter-spacing: 1px;">Extraction de Code source</div>
             <textarea id="rawSource" rows="6" placeholder="Colle un code HTML complet ici pour en extraire des parties spécifiques..."></textarea>
-            
-            <button class="btn blue-btn" onclick="extractBlock('style')">🎨 EXTRAIRE LES STYLES (CSS)</button>
-            <button class="btn blue-btn" onclick="extractBlock('script')">⚙️ EXTRAIRE LES SCRIPTS (JS)</button>
-            <button class="btn blue-btn" onclick="extractBlock('body')">📱 EXTRAIRE LE CORPS (BODY)</button>
+            <button class="btn blue-btn" style="width: 100%;" onclick="extractBlock('style')">🎨 EXTRAIRE LES STYLES (CSS)</button>
+            <button class="btn blue-btn" style="width: 100%;" onclick="extractBlock('script')">⚙️ EXTRAIRE LES SCRIPTS (JS)</button>
+            <button class="btn blue-btn" style="width: 100%;" onclick="extractBlock('body')">📱 EXTRAIRE LE CORPS (BODY)</button>
         </div>
 
         <div class="card">
             <div style="font-size: 0.75rem; text-transform: uppercase; color: #888; margin-bottom: 5px; letter-spacing: 1px;">Résultat de l'extraction :</div>
             <textarea id="extractionResult" readonly placeholder="Le bloc extrait apparaîtra ici..."></textarea>
-            <button class="btn yellow-btn" onclick="copyExtraction()">📋 COPIER LE COMPOSANT</button>
+            <button class="btn yellow-btn" style="width: 100%;" onclick="copyExtraction()">📋 COPIER LE COMPOSANT</button>
         </div>
     </div>
 
     <div class="signature">Made by Brahim Laiche 2026 Paris</div>
 
 <script>
-    // --- Gestion de la Navigation Interne ---
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        
         document.getElementById(tabId).classList.add('active');
         event.target.classList.add('active');
     }
 
-    // --- Système de Console Virtuelle Mobile ---
+    async function pasteClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            const textarea = document.getElementById('sandboxCode');
+            textarea.value = text;
+            autoSaveSandbox();
+            consoleLogger("Code collé avec succès.");
+        } catch (err) {
+            consoleLogger("Erreur accès presse-papiers", "error");
+        }
+    }
+
     const consoleLogger = (msg, type = "info") => {
         const consoleEl = document.getElementById('consoleLog');
         if (!consoleEl) return;
-        
         let classType = "log-info";
         let prefix = "> ";
         if (type === "error") { classType = "log-err"; prefix = "❌ Error: "; }
         if (type === "warn") { classType = "log-warn"; prefix = "⚠️ Warn: "; }
-        
         consoleEl.innerHTML += `<div class="${classType}">${prefix}${msg}</div>`;
         consoleEl.scrollTop = consoleEl.scrollHeight;
     };
 
-    function clearConsole() {
-        document.getElementById('consoleLog').innerHTML = "<div>> Console vidée.</div>";
-    }
+    function clearConsole() { document.getElementById('consoleLog').innerHTML = "<div>> Console vidée.</div>"; }
 
-    // --- Moteur de Rendu local (Iframe Injection) ---
     function runSandbox() {
         const code = document.getElementById('sandboxCode').value;
         const iframe = document.getElementById('labPreview');
         clearConsole();
         consoleLogger("Compilation locale du composant...", "warn");
 
-        // Script d'interception magique à injecter dans l'iframe pour capturer les logs de ton code
-        const hookScript = `
-            <script>
-                window.onerror = function(message, source, lineno, colno, error) {
-                    window.parent.postMessage({type: 'error', data: message + " (Ligne " + lineno + ")"}, '*');
-                    return false;
-                };
-                console.log = function(...args) {
-                    window.parent.postMessage({type: 'log', data: args.join(' ')}, '*');
-                };
-                console.warn = function(...args) {
-                    window.parent.postMessage({type: 'warn', data: args.join(' ')}, '*');
-                };
-                console.error = function(...args) {
-                    window.parent.postMessage({type: 'error', data: args.join(' ')}, '*');
-                };
-            <\/script>
-        `;
+        const hookScript = `<script>window.onerror = function(m,s,l,c,e){window.parent.postMessage({type:'error',data:m+" (Ligne "+l+")"},'*');return false;}; console.log = function(...args){window.parent.postMessage({type:'log',data:args.join(' ')},'*');};<\/script>`;
 
-        // Assemblage final du code injecté
-        let finalCode = code;
-        if (finalCode.includes('<head>')) {
-            finalCode = finalCode.replace('<head>', '<head>' + hookScript);
-        } else {
-            finalCode = hookScript + finalCode;
-        }
-
+        let finalCode = code.includes('<head>') ? code.replace('<head>', '<head>' + hookScript) : hookScript + code;
         const blob = new Blob([finalCode], { type: 'text/html' });
         iframe.src = URL.createObjectURL(blob);
-        consoleLogger("Exécution réussie.", "success");
-
-        // Passage immédiat et forcé en mode plein écran lors de l'exécution
+        
         const container = document.getElementById('previewContainer');
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            if (container.requestFullscreen) {
-                container.requestFullscreen();
-            } else if (container.webkitRequestFullscreen) {
-                container.webkitRequestFullscreen(); // Support iOS/Safari
-            }
+            if (container.requestFullscreen) container.requestFullscreen();
+            else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
         }
     }
 
-    // Écouteur de messages pour intercepter la télémétrie de l'iframe
-    window.addEventListener('message', function(e) {
-        if (e.data && e.data.type) {
-            consoleLogger(e.data.data, e.data.type);
-        }
-    });
+    window.addEventListener('message', function(e) { if (e.data && e.data.type) consoleLogger(e.data.data, e.data.type); });
 
-    // --- Gestion du Plein Écran Natif API ---
     function toggleFullscreen() {
         const container = document.getElementById('previewContainer');
         const btn = document.getElementById('fsBtn');
-        
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            if (container.requestFullscreen) {
-                container.requestFullscreen();
-            } else if (container.webkitRequestFullscreen) {
-                container.webkitRequestFullscreen();
-            }
+            if (container.requestFullscreen) container.requestFullscreen();
+            else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
             btn.style.color = "var(--danger)";
         } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            }
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             btn.style.color = "var(--accent)";
         }
     }
 
-    // Synchronisation de l'état du bouton si l'utilisateur quitte le plein écran via le geste natif du téléphone
     function onFsChange() {
         const btn = document.getElementById('fsBtn');
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            btn.style.color = "var(--accent)";
-        } else {
-            btn.style.color = "var(--danger)";
-        }
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) btn.style.color = "var(--accent)";
+        else btn.style.color = "var(--danger)";
     }
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
 
-    // --- Persistance Locale Auto-save ---
-    function autoSaveSandbox() {
-        localStorage.setItem('sniper_sandbox_cache', document.getElementById('sandboxCode').value);
-    }
+    function autoSaveSandbox() { localStorage.setItem('sniper_sandbox_cache', document.getElementById('sandboxCode').value); }
 
-    // --- Extracteur Chirurgical de Composants (Scraping de balises) ---
     function extractBlock(type) {
         const source = document.getElementById('rawSource').value;
         const resultArea = document.getElementById('extractionResult');
-        
-        if(!source) {
-            alert("Veuillez coller du code source au préalable.");
-            return;
-        }
-
-        let regex;
-        if (type === 'style') regex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-        if (type === 'script') regex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-        if (type === 'body') regex = /<body[^>]*>([\s\S]*?)<\/body>/gi;
-
-        let matches = [];
-        let match;
-        while ((match = regex.exec(source)) !== null) {
-            matches.push(match[1].trim());
-        }
-
-        if (matches.length > 0) {
-            resultArea.value = matches.join("\n\n/* --- Nouveau Bloc Détecté --- */\n\n");
-            alert(`Succès ! ${matches.length} bloc(s) ${type.toUpperCase()} extrait(s).`);
-        } else {
-            resultArea.value = "";
-            alert(`Aucun bloc <${type}> trouvé dans ce fichier.`);
-        }
+        if(!source) { alert("Veuillez coller du code source au préalable."); return; }
+        let regex = type === 'style' ? /<style[^>]*>([\s\S]*?)<\/style>/gi : type === 'script' ? /<script[^>]*>([\s\S]*?)<\/script>/gi : /<body[^>]*>([\s\S]*?)<\/body>/gi;
+        let matches = []; let match;
+        while ((match = regex.exec(source)) !== null) matches.push(match[1].trim());
+        if (matches.length > 0) { resultArea.value = matches.join("\n\n/* --- Nouveau Bloc --- */\n\n"); }
+        else { alert(`Aucun bloc <${type}> trouvé.`); }
     }
 
     function copyExtraction() {
         const res = document.getElementById('extractionResult');
         if(!res.value) return;
         navigator.clipboard.writeText(res.value);
-        alert("Composant copié dans ton presse-papier !");
+        alert("Composant copié !");
     }
 
-    // --- Initialisation au chargement ---
     window.onload = function() {
         const cached = localStorage.getItem('sniper_sandbox_cache');
-        if (cached) {
-            document.getElementById('sandboxCode').value = cached;
-        }
+        if (cached) document.getElementById('sandboxCode').value = cached;
     };
-</script>
-
-<script>
-    if('serviceWorker' in navigator){
-        window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
-    }
 </script>
 
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
